@@ -13,50 +13,18 @@ staload "../../SATS/LedControl/LedControl.sats"
 (* ****** ****** *)
 
 %{^
-  #define N 8
-  typedef char *charptr;
-  int theArray[N] = {0,0,0,0,0,0,0,0} ;
+  #include "LedControl.h"
 
-  LedControl theLC;
+  #define N 8
+  int theArray[N] = {0,0,0,0,0,0,0,0} ;
+  LedControl theLC = LedControl(12,10,11,1);
 %} 
 
 #define N 8
-abstype charptr = $extype"charptr"
 macdef theArray = $extval(arrayref(int,N),"theArray")
+macdef lc = $extval(LedControl_ptr, "&theLC")
 
 (* ****** ****** *)
-
-extern fun setup (): void = "mac#"
-implement setup () = () where
-{
-
-}
-
-extern fun loop (): void = "mac#"
-implement loop () =
-myloop() where
-{
-  fun myloop(): void = let
-    // nothing
-  in
-    myloop ()
-  end 
-} 
-
-////
-%{^
-  #define N 8
-  typedef char *charptr;
-  int theArray[N] = {0,0,0,0,0,0,0,0} ;
-
-  LedControl theLC;
-%} 
-
-#define N 8
-abstype charptr = $extype"charptr"
-macdef theArray = $extval(arrayref(int,N),"theArray")
-
-(* ***** ***** *)
 
 fnx find_next{n:pos}
 (A: arrayref(int, n), n: int(n)) : bool = let
@@ -138,70 +106,69 @@ implement fprint_array$sep<> (out) = ()
 macdef LEDPIN = 13
 macdef BAUD_RATE = 9600
 
+fun disp_mat(A: arrayref(int, N)): void = 
+let
+  fun disp_row(A: arrayref(int, N), i: natLte(N)): void = 
+  if i < N then let 
+    val tmp = A[i]
+    val () = lc.setLed(0,tmp-1,i,true) // turns off LED at col, row
+  in
+    disp_row(A, i+1)
+  end else ()
+in
+  disp_row(A, 0)
+end
+
+(* ****** ****** *)
+
 extern fun setup (): void = "mac#"
 implement setup () = () where
 {
-    extvar "theLC" = LedControl(12,11,10,1)
-    val lc = $extval(LedControl_ptr, "theLC")
+  val () = lc.shutdown(0, false)
+  val () = lc.setIntensity(0, 8)
+  val () = lc.clearDisplay(0)
 
-    val () = lc.shutdown(0, false)
-    val () = lc.setIntensity(0, 8)
-    val () = lc.clearDisplay(  0  )
-
-  // ?
   val () = pinMode(LEDPIN, OUTPUT)
   val () = Serial_ptr._begin(BAUD_RATE)
-  // val () = clr_mat()
-} 
-
-(* ****** ****** *)
+}
 
 extern fun loop (): void = "mac#"
 implement loop () =
 myloop() where
 {
   fun myloop(): void = let
-  
     val out   = $extval (FILEref, "0")
     val A     = theArray
     val found = find_next (A, N)
-
-    val () =
-    if found then
-    {
-      val () = fprint_arrayref (out, A, i2sz(N))
-      val () = Serial_ptr.println()
-    }
 
     val () =
     if ~found then
     {
       val () = fprint_string (out, "All solutions are found!")
       val () = Serial_ptr.println()
-    } 
+    }
 
     // val () = digitalWrite(LEDPIN, 1)
     // val () = delay(250)
     // val () = digitalWrite(LEDPIN, 0)
     // val () = delay(1000)
-
-    // // val () = clr_mat() // replace this line
-    // val () = lc.clearDisplay(  0  )
-
+    // val () = clr_mat()
     // val () = loopy()
 
-    // val () =
-    // if found then
-    // {
-    //   val () = disp_mat(A)
-    //   val () = delay(10000)
-    // }
+    val () = lc.clearDisplay(0)
+    val () =
+    if found then
+    {
+      val () = fprint_arrayref (out, A, i2sz(N))
+      val () = Serial_ptr.println()
 
+      val () = disp_mat(A)
+      val () = delay(10000)
+    }
   in
     myloop ()
   end 
 } 
-
 
 (* ****** ****** *)
 
